@@ -31,7 +31,7 @@ stages:
     
     - task: AzureCLI@2
       inputs:
-        azureSubscription: alfeutestspnovo
+        azureSubscription: ado-sc
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
@@ -49,11 +49,12 @@ stages:
 
     - script: |
             # this is because of the old dependency inside Nutter
-            python -m pip install --upgrade pip nutter
+            # python -m pip install --upgrade pip nutter
             python -m pip install wheel
-            python -m pip install setuptools
-            python -m pip install pytest
-            python -m pip install pyspark
+            # python -m pip install setuptools
+            # python -m pip install pytest
+            # python -m pip install pyspark
+            python -m pip install -r requirements.txt
       displayName: 'Install dependencies' 
       
     - script: |
@@ -80,7 +81,7 @@ stages:
 
     - script: |
         echo Running job
-        databricks bundle run bundlesDevOpsDemo_job -t $(env)
+        databricks bundle run notebook_validation_job -t $(env)
       displayName: Run simpleworkflow on $(env) enviroment
 
     # - script: |
@@ -88,12 +89,12 @@ stages:
     #     databricks bundle run bundlesDevOpsDemo_pipeline -t $(env)
     #   displayName: Run simpleworkflow on $(env) enviroment
     
-    - script: |
-        nutter run /Workspace/Users/alfeu.duran@databricks.com/Projects/bundlesDevOpsDemo/dev/files/tests/test_nyctaxi --cluster_id 0614-140310-8igaasv5 --junit_report --timeout 240
-      env:
-        DATABRICKS_HOST: $(DATABRICKS_HOST)
-        DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
-      displayName: 'Execute Nutter tests'
+    # - script: |
+    #     nutter run /Workspace/Users/alfeu.duran@databricks.com/Projects/bundlesDevOpsDemo/dev/files/tests/test_nyctaxi --cluster_id 0614-140310-8igaasv5 --junit_report --timeout 240
+    #   env:
+    #     DATABRICKS_HOST: $(DATABRICKS_HOST)
+    #     DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
+    #   displayName: 'Execute Nutter tests'
 
     - task: PublishTestResults@2
       condition: succeededOrFailed()
@@ -103,74 +104,67 @@ stages:
         failTaskOnFailedTests: true
 
       
-- stage: toProduction
-  variables:
-    - group: PrdVariables
-  condition: |
-    eq(variables['Build.SourceBranch'], 'refs/heads/main')
-  dependsOn: onRelease
-  jobs:
-  - job: onReleaseJob
-    pool:
-      vmImage: 'ubuntu-20.04'
+# - stage: toProduction
+#   variables:
+#     - group: PrdVariables
+#   condition: |
+#     eq(variables['Build.SourceBranch'], 'refs/heads/main')
+#   dependsOn: onRelease
+#   jobs:
+#   - job: onReleaseJob
+#     pool:
+#       vmImage: 'ubuntu-20.04'
 
-    steps:
-    - script: env | sort
-      displayName: 'Environment / Context'
+#     steps:
+#     - script: env | sort
+#       displayName: 'Environment / Context'
 
-    - task: UsePythonVersion@0
-      displayName: 'Use Python 3.8'
-      inputs:
-        versionSpec: 3.8
+#     - task: UsePythonVersion@0
+#       displayName: 'Use Python 3.8'
+#       inputs:
+#         versionSpec: 3.8
 
-    - checkout: self
-      persistCredentials: true
-      clean: true
-      displayName: 'Checkout & Build.Reason: $(Build.Reason) & Build.SourceBranchName: $(Build.SourceBranchName)'
+#     - checkout: self
+#       persistCredentials: true
+#       clean: true
+#       displayName: 'Checkout & Build.Reason: $(Build.Reason) & Build.SourceBranchName: $(Build.SourceBranchName)'
 
-    - task: AzureCLI@2
-      inputs:
-        azureSubscription: alfeutestspnovo
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          echo "Getting access token..."
-          DATABRICKS_TOKEN=$(az account get-access-token --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d --query "accessToken" -o tsv)
-          echo "##vso[task.setvariable variable=DATABRICKS_TOKEN]$DATABRICKS_TOKEN"
+#     - task: AzureCLI@2
+#       inputs:
+#         azureSubscription: ado-sc
+#         scriptType: 'bash'
+#         scriptLocation: 'inlineScript'
+#         inlineScript: |
+#           echo "Getting access token..."
+#           DATABRICKS_TOKEN=$(az account get-access-token --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d --query "accessToken" -o tsv)
+#           echo "##vso[task.setvariable variable=DATABRICKS_TOKEN]$DATABRICKS_TOKEN"
 
-    - script: |
-          python -m pip install --upgrade pip nutter
-          # this is because of the old dependency inside Nutter
-          python -m pip install wheel
-          python -m pip install setuptools
-      displayName: 'Install dependencies' 
+#     - script: |
+#           python -m pip install --upgrade pip nutter
+#           # this is because of the old dependency inside Nutter
+#           python -m pip install wheel
+#           python -m pip install setuptools
+#       displayName: 'Install dependencies' 
 
-    - script: |
-        echo Instalando o CLI do Databricks...
-        curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
-      displayName: 'Instalar CLI do Databricks'
+#     - script: |
+#         echo Instalando o CLI do Databricks...
+#         curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+#       displayName: 'Instalar CLI do Databricks'
     
-    - script: |
-        echo Configurando o CLI do Databricks...
-        databricks configure --token
-        echo -e "[DATABRICKS_HOST]\n[DATABRICKS_TOKEN]" | databricks configure --token
-      env:
-        DATABRICKS_HOST: $(DATABRICKS_HOST)
-        DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
-      displayName: 'Configurar CLI do Databricks'
+#     - script: |
+#         echo Configurando o CLI do Databricks...
+#         databricks configure --token
+#         echo -e "[DATABRICKS_HOST]\n[DATABRICKS_TOKEN]" | databricks configure --token
+#       env:
+#         DATABRICKS_HOST: $(DATABRICKS_HOST)
+#         DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
+#       displayName: 'Configurar CLI do Databricks'
 
-    - script: |
-        databricks bundle validate -t $(env)
-      displayName: Validate bundle for $(env) enviroment
+#     - script: |
+#         databricks bundle validate -t $(env)
+#       displayName: Validate bundle for $(env) enviroment
 
-    - script: |
-        echo Deploy do bundle via CLI do Databricks...
-        databricks bundle deploy -t $(env) 
-      displayName: Deploy job on $(env) enviroment
-
-    
-
-      
-    
-        
-    
+#     - script: |
+#         echo Deploy do bundle via CLI do Databricks...
+#         databricks bundle deploy -t $(env) 
+#       displayName: Deploy job on $(env) enviroment
